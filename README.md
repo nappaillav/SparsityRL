@@ -1,24 +1,6 @@
-<p align="center">
-
-<h2 align="center">Network Sparsity Unlocks the Scaling Potential of Deep Reinforcement Learning (ICML'25)</a></h2>
-  <p align="center">
-    <a href="https://guozheng-ma.github.io/"><strong>Guozheng Ma*</strong></a>
-    ·
-    <a href="https://github.com/lilucse"><strong>Lu Li*</strong></a>
-    ·
-    <a href="https://zerlinwang.github.io/"><strong>Zilin Wang</strong></a>
-  </p>
-  <p align="center">
-    <a href="https://sites.google.com/site/mathshenli/home"><strong>Li Shen</strong></a>
-    ·
-    <a href="https://pierrelucbacon.com/"><strong>Pierre-Luc Bacon</strong></a>
-    ·
-    <a href="https://scholar.google.com/citations?user=RwlJNLcAAAAJ&hl=en"><strong>DaCheng Tao</strong></a>
-  </p>
 
 
-
-This repository contains the source code required to reproduce the DeepMind Control experiments presented in our paper.
+This repository contains the source code that was modified from the official implementation of "Network Sparsity Unlocks the Scaling Potential of Deep Reinforcement Learning (ICML'25)" required to reproduce the DeepMind Control experiments presented in our paper.
 
 ## 📋Getting started
 
@@ -59,11 +41,11 @@ python run.py \
 
 ## 🙏 Acknowledgements
 
-We would like to thank the [SimBa codebase](https://github.com/SonyResearch/simba) and [JaxPruner](https://github.com/google-research/jaxpruner). Our implementation builds on top of their repository.
+We would like to thank the [SimBa codebase](https://github.com/SonyResearch/simba), [SparseNetwork4DRL](https://github.com/lilucse/SparseNetwork4DRL) and [JaxPruner](https://github.com/google-research/jaxpruner). Our implementation builds on top of their repository.
 
 ## ❓Questions
 
-If you have any questions, please raise an issue or send an email to Lu (lu.li@mila.quebec) and Guozheng (guozheng001@e.ntu.edu.sg).
+Coming Soon
 
 
 
