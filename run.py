@@ -51,7 +51,7 @@ def run(args):
     # buffer
     #############################
     buffer = create_buffer(
-        observation_space=observation_space, action_space=action_space, **cfg.buffer
+        observation_space=observation_space, action_space=action_space, seed=cfg.seed, **cfg.buffer
     )
     buffer.reset()
 
@@ -174,7 +174,7 @@ def run(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--config_path", type=str, default="./configs")
-    parser.add_argument("--config_name", type=str, default="base")
+    parser.add_argument("--config_name", type=str, default="base_ddpg")
     parser.add_argument("--overrides", action="append", default=[])
     args = parser.parse_args()
 

@@ -2,6 +2,7 @@ import gymnasium as gym
 from typing import Tuple, Optional
 from scale_rl.buffers.base_buffer import BaseBuffer, Batch
 from scale_rl.buffers.numpy_buffer import NpyUniformBuffer, NpyPrioritizedBuffer
+from scale_rl.buffers.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 
 
 def create_buffer(
@@ -29,6 +30,30 @@ def create_buffer(
                 min_length=min_length, 
                 add_batch_size=add_batch_size, 
                 sample_batch_size=sample_batch_size,
+            )
+        elif buffer_type == 'replay':
+            buffer = ReplayBuffer(
+                observation_space=observation_space,
+                action_space=action_space,
+                n_step=n_step,
+                gamma=gamma,
+                max_length=max_length,
+                min_length=min_length,
+                add_batch_size=add_batch_size,
+                sample_batch_size=sample_batch_size,
+                seed=kwargs.get('seed', 0),
+            )
+        elif buffer_type == 'prioritized_replay':
+            buffer = PrioritizedReplayBuffer(
+                observation_space=observation_space,
+                action_space=action_space,
+                n_step=n_step,
+                gamma=gamma,
+                max_length=max_length,
+                min_length=min_length,
+                add_batch_size=add_batch_size,
+                sample_batch_size=sample_batch_size,
+                seed=kwargs.get('seed', 0),
             )
 
         else:

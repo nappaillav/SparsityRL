@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+import flax
 from flax.training import dynamic_scale
 
 from scale_rl.agents.base_agent import BaseAgent
@@ -104,11 +105,10 @@ def _init_ddpg_networks(
     fake_actor_params = _fake_actor_variables['params']  # A FrozenDict of parameters
     if actor_sparse:
         actor_network_parm_dict = get_var_shape_dict(fake_actor_params)
-        actor_network_sparse = get_sparsities_erdos_renyi(actor_network_parm_dict, default_sparsity=float(cfg.actor_sparsity))
-        mask_rng = jax.random.PRNGKey(cfg.seed)
-        actor_network_mask = create_mask(fake_actor_params, actor_network_sparse, mask_rng)
+        erk_sparsities = get_sparsities_erdos_renyi(actor_network_parm_dict, default_sparsity=float(cfg.actor_sparsity))
+        actor_network_sparse = flax.core.freeze(flax.traverse_util.unflatten_dict(erk_sparsities, sep='/'))
     else:
-        actor_network_mask = None
+        actor_network_sparse = None
 
     actor = Trainer.create(
         network_def=actor_network_def,
@@ -119,7 +119,7 @@ def _init_ddpg_networks(
         ),
         dynamic_scale=dynamic_scale.DynamicScale() if cfg.mixed_precision else None,
         sparse = actor_sparse,
-        network_mask = actor_network_mask
+        sparsities = actor_network_sparse
     )
 
     if cfg.critic_use_cdq:
@@ -145,11 +145,10 @@ def _init_ddpg_networks(
        critic_sparse = False
     if critic_sparse:
         critic_network_parm_dict = get_var_shape_dict(fake_critic_params)
-        critic_network_sparse = get_sparsities_erdos_renyi(critic_network_parm_dict, default_sparsity=float(cfg.critic_sparsity))
-        mask_rng = jax.random.PRNGKey(cfg.seed)
-        critic_network_mask = create_mask(fake_critic_params, critic_network_sparse, mask_rng)
+        erk_sparsities = get_sparsities_erdos_renyi(critic_network_parm_dict, default_sparsity=float(cfg.critic_sparsity))
+        critic_network_sparse = flax.core.freeze(flax.traverse_util.unflatten_dict(erk_sparsities, sep='/'))
     else:
-        critic_network_mask = None
+        critic_network_sparse = None
 
 
     critic = Trainer.create(
@@ -165,7 +164,7 @@ def _init_ddpg_networks(
         ),
         dynamic_scale=dynamic_scale.DynamicScale() if cfg.mixed_precision else None,
         sparse = critic_sparse,
-        network_mask = critic_network_mask,
+        sparsities = critic_network_sparse,
     )
 
     # we set target critic's parameters identical to critic by using same rng.
@@ -179,7 +178,7 @@ def _init_ddpg_networks(
         },
         tx=None,
         sparse = critic_sparse,
-        network_mask = critic_network_mask,
+        sparsities = critic_network_sparse,
     )
 
     return rng, actor, critic, target_critic

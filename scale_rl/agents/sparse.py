@@ -4,6 +4,7 @@ import logging
 import chex
 import flax
 import jax
+import jax.numpy as jnp
 import numpy as np
 from typing import Dict, List, Optional, Tuple
 FilterFnType = Callable[[Tuple[str], chex.Array], bool]
@@ -99,10 +100,10 @@ def erk(
       For leaves with filter_fn(key, param)==False, None values are used.
   """
   # TODO: Add support for including excluded params in the calculations.
-  if isinstance(param_tree, (chex.Array, chex.ArrayNumpy)):
-    raise ValueError(
-        'Single parameter is provided. Please provide a paramater tree.'
-    )
+  # if isinstance(param_tree, (chex.Array, chex.ArrayNumpy)):
+  #   raise ValueError(
+  #       'Single parameter is provided. Please provide a paramater tree.'
+  #   )
 
   flat_dict = flax.traverse_util.flatten_dict(param_tree)
   filtered_shape_dict = {
@@ -290,3 +291,47 @@ def create_mask(params, sparsities, rng):
 
     new_masks = unflatten_dict(new_flat_masks, sep='/')
     return freeze(new_masks)
+
+def generate_masks_jax(seed, params, sparsities):
+    """JAX-compatible mask generation for a single seed.
+    Compatible with jax.vmap over the seed.
+    """
+    # Ensure they have the same structure by using tree_map to generate keys
+    flat_params, treedef = jax.tree_util.tree_flatten(params)
+    flat_sparsities, treedef_s = jax.tree_util.tree_flatten(sparsities)
+    
+    # We should handle cases where sparsities might be a subset, but here we assume identical structure.
+    # If shapes/structures differ, tree_flatten might be inconsistent.
+    # However, get_sparsities_erdos_renyi + unflatten_dict should guarantee same leaf order.
+    
+    keys = jax.random.split(seed, len(flat_params))
+    
+    def _generate_layer_mask(key, param, sparsity):
+        if sparsity is None or sparsity == 0:
+            return jnp.ones(param.shape, dtype=jnp.float32)
+        keep_prob = 1.0 - sparsity
+        return jax.random.bernoulli(key, p=keep_prob, shape=param.shape).astype(jnp.float32)
+
+    new_flat_masks = [
+        _generate_layer_mask(k, p, s) 
+        for k, p, s in zip(keys, flat_params, flat_sparsities)
+    ]
+    
+    return jax.tree_util.tree_unflatten(treedef, new_flat_masks)
+
+def sample_mask_from_avg(avg_mask, rng):
+    """Samples a binary mask from an averaged probability mask.
+    
+    This ensures that the final mask applied to the gradients is binary (0 or 1),
+    preserving the intended sparsity level even after averaging multiple masks.
+    """
+    flat_avg, treedef = jax.tree_util.tree_flatten(avg_mask)
+    num_leaves = len(flat_avg)
+    keys = jax.random.split(rng, num_leaves)
+    
+    new_flat_masks = [
+        jax.random.bernoulli(k, p=p).astype(jnp.float32)
+        for k, p in zip(keys, flat_avg)
+    ]
+    
+    return jax.tree_util.tree_unflatten(treedef, new_flat_masks)

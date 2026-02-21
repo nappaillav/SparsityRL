@@ -45,7 +45,8 @@ def update_actor(
 
         return actor_loss, actor_info
 
-    actor, info = actor.apply_gradient(actor_loss_fn)
+    key, subkey = jax.random.split(key)
+    actor, info = actor.apply_gradient(actor_loss_fn, rnd_seeds=batch.get("obs_seed"), rng=subkey)
     info["train/actor_gnorm"] = info.pop("grad_norm")
 
     return actor, info
@@ -120,7 +121,8 @@ def update_critic(
 
         return critic_loss, critic_info
 
-    critic, info = critic.apply_gradient(critic_loss_fn)
+    key, subkey = jax.random.split(key)
+    critic, info = critic.apply_gradient(critic_loss_fn, rnd_seeds=batch.get("obs_seed"), rng=subkey)
     info["train/critic_gnorm"] = info.pop("grad_norm")
 
     return critic, info
