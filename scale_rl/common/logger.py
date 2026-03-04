@@ -15,6 +15,9 @@ def get_run_info(args):
     else:
         job_type = f"P={args.num_params}_AP={args.actor_num_params}D={args.agent.actor_num_blocks}W={args.agent.actor_hidden_dim}S={args.agent.actor_sparsity}CP={args.critic_num_params}D={args.agent.critic_num_blocks}W={args.agent.critic_hidden_dim}S={args.agent.critic_sparsity}"
         name = f"seed={args.agent.seed}_{args.agent.agent_type}_{args.env.env_name}_RR={args.updates_per_interaction_step}_P={args.num_params}_AP={args.actor_num_params}_AD={args.agent.actor_num_blocks}_AW={args.agent.actor_hidden_dim}_AS={args.agent.actor_sparsity}_CP={args.critic_num_params}_CD={args.agent.critic_num_blocks}_CW={args.agent.critic_hidden_dim}_CS={args.agent.critic_sparsity}"
+    name += f"_masking={args.masking_type}"
+    # group += f"_masking={args.masking_type}"
+    # job_type += f"_masking={args.masking_type}"
     return {
         "group": group,
         "job_type": job_type,

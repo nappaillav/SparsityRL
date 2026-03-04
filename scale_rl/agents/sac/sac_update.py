@@ -16,6 +16,7 @@ def update_actor(
     temperature: Trainer,
     batch: Batch,
     critic_use_cdq: bool,
+    masking_type: str,
 ) -> Tuple[Trainer, Dict[str, float]]:
     def actor_loss_fn(
         actor_params: flax.core.FrozenDict[str, Any],
@@ -46,7 +47,7 @@ def update_actor(
         return actor_loss, actor_info
 
     key, subkey = jax.random.split(key)
-    actor, info = actor.apply_gradient(actor_loss_fn, rnd_seeds=batch.get("obs_seed"), rng=subkey)
+    actor, info = actor.apply_gradient(actor_loss_fn, rnd_seeds=batch.get("obs_seed"), rng=subkey, masking_type=masking_type)
     info["train/actor_gnorm"] = info.pop("grad_norm")
 
     return actor, info
@@ -62,6 +63,7 @@ def update_critic(
     gamma: float,
     n_step: int,
     critic_use_cdq: bool,
+    masking_type: str,
 ) -> Tuple[Trainer, Dict[str, float]]:
     # compute the target q-value
     next_dist = actor(observations=batch["next_observation"])
@@ -122,7 +124,7 @@ def update_critic(
         return critic_loss, critic_info
 
     key, subkey = jax.random.split(key)
-    critic, info = critic.apply_gradient(critic_loss_fn, rnd_seeds=batch.get("obs_seed"), rng=subkey)
+    critic, info = critic.apply_gradient(critic_loss_fn, rnd_seeds=batch.get("obs_seed"), rng=subkey, masking_type=masking_type)
     info["train/critic_gnorm"] = info.pop("grad_norm")
 
     return critic, info

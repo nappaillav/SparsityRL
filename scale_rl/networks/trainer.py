@@ -9,7 +9,7 @@ import optax
 from flax.training import dynamic_scale as dynamic_scale_lib
 from flax.core import freeze, unfreeze
 from scale_rl.networks.utils import tree_norm
-from scale_rl.agents.sparse import get_sparsities_erdos_renyi, get_var_shape_dict, create_mask, generate_masks_jax, sample_mask_from_avg
+from scale_rl.networks.optimizer import masked_adam
 PRNGKey = jnp.ndarray
 
 
@@ -82,7 +82,7 @@ class Trainer:
     def apply(self, *args, **kwargs):
         return self.network_def.apply(*args, **kwargs)
 
-    def apply_gradient(self, loss_fn, rnd_seeds=None, rng=None) -> Tuple[Any, "Trainer"]:
+    def apply_gradient(self, loss_fn, rnd_seeds=None, rng=None, masking_type="sample") -> Tuple[Any, "Trainer"]:
         if self.dynamic_scale:
             grad_fn = self.dynamic_scale.value_and_grad(loss_fn, has_aux=True)
             dynamic_scale, is_fin, (_, info), grads = grad_fn(self.params)
@@ -91,37 +91,51 @@ class Trainer:
             grads, info = grad_fn(self.params)
             dynamic_scale = None
             is_fin = True
+
+        final_mask = None
         if self.sparse and self.sparsities is not None and rnd_seeds is not None:
+            # Import here to avoid circular dependencies
+            from scale_rl.agents.sparse import generate_masks_jax, sample_mask_from_avg, percentile_mask_from_avg
             # Generate masks per sample
-            batched_gen_masks = jax.vmap(generate_masks_jax, in_axes=(0, None, None)) # Define it outside 
+            batched_gen_masks = jax.vmap(generate_masks_jax, in_axes=(0, None, None)) # TODO Define it outside 
             masks = batched_gen_masks(rnd_seeds, self.params, self.sparsities)
             # Average masks across batch dimension
             avg_mask = jax.tree.map(lambda x: jnp.mean(x, axis=0), masks) 
             
-            # If rng is provided, sample a binary mask from the averaged probabilities
-            if rng is not None:
+            # Choose masking strategy
+            if masking_type == "sample" and rng is not None:
                 final_mask = sample_mask_from_avg(avg_mask, rng)
+            elif masking_type == "percentile":
+                final_mask = percentile_mask_from_avg(avg_mask, self.sparsities)
             else:
                 final_mask = avg_mask
                 
-            # Mask gradients
-            grads = jax.tree.map(lambda g, m: g * m, grads, final_mask)
-            grad_norm = tree_norm(grads)
-            info["grad_norm"] = grad_norm
+            # --- Manual Masking (Comment out to use Masked Optimizer) ---
+            # grads = jax.tree.map(lambda g, m: g * m, grads, final_mask)
+            # grad_norm = tree_norm(grads)
+            # info["grad_norm"] = grad_norm
         elif self.sparse and self.network_mask is not None:
-            mask_grad = jax.tree.map(lambda u, m: u * m, grads, self.network_mask)
-            grad_norm = tree_norm(mask_grad)
-            info["grad_norm"] = grad_norm
-        else:
-            grad_norm = tree_norm(grads)
-            info["grad_norm"] = grad_norm
+            final_mask = self.network_mask
+            # --- Manual Masking (Comment out to use Masked Optimizer) ---
+            # mask_grad = jax.tree.map(lambda u, m: u * m, grads, self.network_mask)
+            # grad_norm = tree_norm(mask_grad)
+            # info["grad_norm"] = grad_norm
+        
+        if "grad_norm" not in info:
+            info["grad_norm"] = tree_norm(grads)
+
         # TODO adjust sparse gnorm
-        updates, new_opt_state = self.tx.update(grads, self.opt_state, self.params)
+        # Standard Optax update (uncomment to switch back)
+        # updates, new_opt_state = self.tx.update(grads, self.opt_state, self.params)
+        
+        # Masked Optimizer update
+        updates, new_opt_state = self.tx.update(grads, self.opt_state, self.params, mask=final_mask)
         
         # Mask updates again if we already masked grads, 
         # but the user might want it. Let's keep it consistent with their previous logic for now if network_mask exists.
         if self.sparse and self.network_mask is not None:
-            updates = jax.tree.map(lambda u, m: u * m, updates, self.network_mask) #  TODO: Task 1 
+            # updates = jax.tree.map(lambda u, m: u * m, updates, self.network_mask) #  TODO: Task 1 
+            pass
         new_params = optax.apply_updates(self.params, updates)
 
         network = self.replace(

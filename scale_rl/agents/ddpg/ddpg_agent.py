@@ -69,6 +69,7 @@ class DDPGConfig:
     
     actor_sparsity: float
     critic_sparsity: float
+    masking_type: str
 
 # @functools.partial(
 #     jax.jit,
@@ -204,6 +205,7 @@ def _sample_ddpg_actions(
         "critic_use_cdq",
         "target_tau",
         "noise_std",
+        "masking_type",
     ),
 )
 def _update_ddpg_networks(
@@ -217,6 +219,7 @@ def _update_ddpg_networks(
     critic_use_cdq: bool,
     target_tau: float,
     noise_std: float,
+    masking_type: str,
 ) -> Tuple[PRNGKey, Trainer, Trainer, Trainer, Trainer, Dict[str, float]]:
     rng, actor_key, critic_key = jax.random.split(rng, 3)
 
@@ -366,6 +369,7 @@ class DDPGAgent(BaseAgent):
             target_tau=self._cfg.target_tau,
             critic_use_cdq=self._cfg.critic_use_cdq,
             noise_std=self._noise_std,
+            masking_type=self._cfg.masking_type,
         )
 
         for key, value in update_info.items():

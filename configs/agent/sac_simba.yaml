@@ -36,3 +36,4 @@ mixed_precision: false
 
 actor_sparsity: ${actor_sparsity}
 critic_sparsity: ${critic_sparsity}
+masking_type: ${masking_type}

@@ -70,6 +70,7 @@ class SACConfig:
 
     actor_sparsity: float
     critic_sparsity: float
+    masking_type: str
 
 
 # @functools.partial(
@@ -221,6 +222,7 @@ def _sample_sac_actions(
         "critic_use_cdq",
         "target_tau",
         "temp_target_entropy",
+        "masking_type",
     ),
 )
 def _update_sac_networks(
@@ -235,6 +237,7 @@ def _update_sac_networks(
     critic_use_cdq: bool,
     target_tau: float,
     temp_target_entropy: float,
+    masking_type: str,
 ) -> Tuple[PRNGKey, Trainer, Trainer, Trainer, Trainer, Dict[str, float]]:
     rng, actor_key, critic_key = jax.random.split(rng, 3)
 
@@ -245,6 +248,7 @@ def _update_sac_networks(
         temperature=temperature,
         batch=batch,
         critic_use_cdq=critic_use_cdq,
+        masking_type=masking_type,
     )
 
     new_temperature, temperature_info = update_temperature(
@@ -263,6 +267,7 @@ def _update_sac_networks(
         gamma=gamma,
         n_step=n_step,
         critic_use_cdq=critic_use_cdq,
+        masking_type=masking_type,
     )
 
     new_target_critic, target_critic_info = update_target_network(
@@ -362,6 +367,7 @@ class SACAgent(BaseAgent):
             critic_use_cdq=self._cfg.critic_use_cdq,
             target_tau=self._cfg.target_tau,
             temp_target_entropy=self._cfg.temp_target_entropy,
+            masking_type=self._cfg.masking_type,
         )
 
         for key, value in update_info.items():

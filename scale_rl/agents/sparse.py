@@ -319,6 +319,46 @@ def generate_masks_jax(seed, params, sparsities):
     
     return jax.tree_util.tree_unflatten(treedef, new_flat_masks)
 
+def percentile_mask_from_avg(avg_mask, sparsities):
+    """Creates a binary mask by picking the top-k highest activation probabilities 
+    from avg_mask for each layer, where k = (1 - sparsity) * layer_size.
+    
+    This helps in choosing the most frequently active weights over a batch
+    while maintaining the exact target sparsity.
+    """
+    flat_avg, treedef = jax.tree_util.tree_flatten(avg_mask)
+    flat_sparsities, _ = jax.tree_util.tree_flatten(sparsities)
+
+    def _get_top_k_mask(prob_map, sparsity):
+        if sparsity is None or sparsity == 0:
+            return jnp.ones_like(prob_map)
+        
+        num_params = prob_map.size
+        # Number of parameters to keep
+        k = int(jnp.round((1.0 - sparsity) * num_params))
+        
+        # Avoid issues with k=0 or k=num_params
+        if k <= 0:
+            return jnp.zeros_like(prob_map)
+        if k >= num_params:
+            return jnp.ones_like(prob_map)
+
+        # Ensure we get exactly k elements using argsort for consistency
+        flat_probs = prob_map.flatten()
+        indices = jnp.argsort(flat_probs)
+        top_k_indices = indices[-k:]
+        
+        # Create binary mask
+        mask = jnp.zeros_like(flat_probs).at[top_k_indices].set(1.0)
+        return mask.reshape(prob_map.shape)
+
+    new_flat_masks = [
+        _get_top_k_mask(p, s) 
+        for p, s in zip(flat_avg, flat_sparsities)
+    ]
+    
+    return jax.tree_util.tree_unflatten(treedef, new_flat_masks)
+
 def sample_mask_from_avg(avg_mask, rng):
     """Samples a binary mask from an averaged probability mask.
     
